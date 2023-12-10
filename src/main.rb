@@ -9,7 +9,6 @@ require_relative '../config/targets'
 
 options = {
   quiet: false,
-  dead_only: false,
   dry: false
 }
 
@@ -17,9 +16,6 @@ OptionParser.new do |opts|
   opts.banner = 'Usage: main.rb [options]'
   opts.on('-q', '--quiet', 'Disable console output') do
     options[:quiet] = true
-  end
-  opts.on('-D', '--dead-only', 'Only output dead targets') do
-    options[:dead_only] = true
   end
   opts.on('-d', '--dry-run', 'Do not send stats to Cronitor') do
     options[:dry] = true
@@ -57,13 +53,19 @@ targets.each do |i|
       'DEAD'
     end
 
-  logger.log("Target #{target[:title]} is #{status}", indent_level: 1) if !options[:dead_only] or status == 'DEAD'
+  logger.log("Target #{target[:title]} is #{status}", indent_level: 1)
 end
 
 results_message = "ALIVE: #{results[:alive].count}, DEAD: #{results[:dead].count}, SKIPPED: #{results[:skipped].count}"
 
+if options[:quiet] and !results[:dead].empty?
+  del = "\n  "
+  results_report = results[:dead].map { |i| "#{i[:title]} is DEAD" }.join(del) + del
+  results_message.insert(0, results_report)
+end
+
 logger.log('Check results:')
-logger.log(results_message, indent_level: 1)
+logger.log(results_message, indent_level: 1, force: true)
 
 unless options[:dry]
   monitor.ping(message: results_message,
